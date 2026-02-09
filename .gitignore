@@ -1,0 +1,4 @@
+kotaku/
+.kotaku/
+__pycache__/
+*.pyc
