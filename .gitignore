@@ -1,4 +1,39 @@
 kotaku/
 .kotaku/
+
+.env
+.env.*
+*.password
+*.key
+profiles.yml
+dbt_project/profiles.yml
+
+# --- File Python Sampah (Generated) ---
 __pycache__/
 *.pyc
+.ipynb_checkpoints/
+venv/
+.venv/
+env/
+
+# --- Airflow Logs & Data ---
+airflow/logs/
+airflow/plugins/__pycache__/
+airflow/data/
+airflow/*.pid
+airflow/*.err
+airflow/*.log
+standalone_admin_password.txt
+
+# --- dbt Artifacts (Hasil Compile) ---
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
+
+# --- Metabase Data ---
+metabase-data/
+*.db
+
+# --- System Files ---
+.DS_Store
+Thumbs.db

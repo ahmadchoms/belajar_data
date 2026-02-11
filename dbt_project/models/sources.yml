@@ -1,0 +1,8 @@
+sources:
+  - name: postgres_raw
+    database: postgres
+    schema: public
+    tables:
+      - name: orders
+      - name: order_items
+      - name: products

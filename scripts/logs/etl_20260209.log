@@ -1,0 +1,25 @@
+2026-02-09 13:55:24,315 - INFO - === START ETL PIPELINE ===
+2026-02-09 13:55:24,315 - INFO - [*] Memulai proses EXTRACT...
+2026-02-09 13:55:24,337 - ERROR - Pipeline berhenti karena error: Execution failed on sql '
+        select
+            o.order_date,
+            o.total_amount,
+            o.order_id,
+            p.category
+        from orders o
+        join order_items oi on o.order_id = oi.order_id
+        join products p on o.product_id = p.product_id
+        where o.status = 'Completed'
+    ': column o.product_id does not exist
+LINE 9:         join products p on o.product_id = p.product_id
+                                   ^
+HINT:  Perhaps you meant to reference the column "oi.product_id" or the column "p.product_id".
+
+2026-02-09 13:56:54,575 - INFO - === START ETL PIPELINE ===
+2026-02-09 13:56:54,575 - INFO - [*] Memulai proses EXTRACT...
+2026-02-09 13:56:54,594 - INFO - [*] Extract selesai. 505 baris data diambil.
+2026-02-09 13:56:54,594 - INFO - [*] Memulai proses TRANSFORM...
+2026-02-09 13:56:54,610 - INFO - Transform selesai. 131 baris laporan harian siap digunakan.
+2026-02-09 13:56:54,611 - INFO - Memulai proses LOAD ke DB...
+2026-02-09 13:56:54,691 - INFO - [+] Load selesai. Data laporan berhasil disimpan!
+2026-02-09 13:56:54,691 - INFO - === ETL PIPELINE SELESAI === 
