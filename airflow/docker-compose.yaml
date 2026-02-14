@@ -1,23 +1,26 @@
 x-airflow-common:
   &airflow-common
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.7.0}
+  # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.7.0}
+  build: .
   environment:
     &airflow-common-env
+    JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    AIRFLOW_UID: ${AIRFLOW_UID:-50000}
-    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-pandas psycopg2-binary dbt-postgres}
+    AIRFLOW_UID: "50000"
+    # _PIP_ADDITIONAL_REQUIREMENTS: pandas psycopg2-binary dbt-postgres apache-airflow-providers-openlineage>=1.8.0
     AIRFLOW__WEBSERVER__BASE_URL: http://localhost:8081
+    AIRFLOW__SCHEDULER__SCHEDULER_ZOMBIE_TASK_THRESHOLD: 1200
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs
     - ./plugins:/opt/airflow/plugins
     - ./data:/opt/airflow/data
     - ../dbt_project:/opt/airflow/dbt_project
-  user: "${AIRFLOW_UID:-50000}:0"
+  user: "50000:0"
   env_file:
     - ../.env
   depends_on:
@@ -71,17 +74,24 @@ services:
 
   airflow-init:
     <<: *airflow-common
-    command: version
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        mkdir -p /sources/logs /sources/dags /sources/plugins
+        chown -R "50000:0" /sources/{logs,dags,plugins}
+        exec /entrypoint airflow version
     environment:
       <<: *airflow-common-env
       _AIRFLOW_DB_UPGRADE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-admin}
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-admin}
-    depends_on:
-      <<: *airflow-common-depends-on
+    user: "0:0"
+    volumes:
+      - ./dags:/sources/dags
+      - ./logs:/sources/logs
+      - ./plugins:/sources/plugins
   
   metabase:
     image: metabase/metabase:latest
@@ -94,6 +104,55 @@ services:
       - MB_DB_FILE=/metabase-data/metabase.db
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  spark-master:
+    image: apache/spark:3.5.0
+    container_name: spark-master
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - SPARK_MODE=master
+    ports:
+      - "9090:8080"
+      - "7077:7077"
+    volumes:
+      - ./:/opt/spark/work-dir
+      - ./dags:/opt/airflow/dags
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+
+  spark-worker-1:
+    image: apache/spark:3.5.0
+    container_name: spark-worker-1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=512M
+      - SPARK_WORKER_CORES=1
+    volumes:
+      - ./:/opt/spark/work-dir
+      - ./dags:/opt/airflow/dags
+    depends_on:
+      - spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+
+  spark-worker-2:
+    image: apache/spark:3.5.0
+    container_name: spark-worker-2
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=512M
+      - SPARK_WORKER_CORES=1
+    volumes:
+      - ./:/opt/spark/work-dir
+      - ./dags:/opt/airflow/dags
+    depends_on:
+      - spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
 
 volumes:
   postgres-db-volume:
